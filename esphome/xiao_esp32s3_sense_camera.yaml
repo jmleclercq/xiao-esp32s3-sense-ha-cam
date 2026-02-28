@@ -1,33 +1,31 @@
 substitutions:
-  devicename: xiao-esp32s3-sense-cam
-  friendly_name: XIAO ESP32S3 Sense Cam
+  devicename: minicam-esp32
+  friendly_name: MiniCam ESP32
 
 esphome:
   name: ${devicename}
   friendly_name: ${friendly_name}
-  platformio_options:
-    # Nécessaire pour la caméra (PSRAM) selon l'exemple Seeed
-    build_flags: -DBOARD_HAS_PSRAM
-    board_build.arduino.memory_type: qio_opi
-    board_build.f_flash: 80000000L
-    board_build.flash_mode: qio
 
 esp32:
-  # L'exemple officiel Seeed pour la caméra utilise esp32-s3-devkitc-1
   board: esp32-s3-devkitc-1
   variant: esp32s3
   framework:
     type: arduino
 
+# Required for esp32_camera on ESPHome 2026.x
+psram:
+  mode: octal
+  speed: 80MHz
+
 logger:
 
 api:
-  # Si tu utilises une clé de chiffrement ESPHome, décommente :
   encryption:
     key: !secret api_encryption_key
 
 ota:
-  password: !secret ota_password
+  - platform: esphome
+    password: !secret ota_password
 
 wifi:
   ssid: !secret wifi_ssid
@@ -35,13 +33,11 @@ wifi:
 
   ap:
     ssid: "${friendly_name} Fallback"
-    password: "changeme123"
+    password: "12345678"
 
 captive_portal:
 
-# --- Caméra (OV2640/OV3660 sur la Sense) ---
-# Pins tirées du Wiki Seeed "XIAO ESP32S3 ESPHome" (camera section)
-# Ajuste la résolution si tu veux plus léger (ex: 640x480) ou plus fort si stable.
+# Camera (XIAO ESP32S3 Sense)
 esp32_camera:
   id: cam
   name: "${friendly_name}"
@@ -55,24 +51,32 @@ esp32_camera:
   vsync_pin: GPIO38
   href_pin: GPIO47
   pixel_clock_pin: GPIO13
-  resolution: 800x600
 
-# Stream + snapshot HTTP (pratique pour debug)
+  # Stable baseline
+  resolution: 640x480
+  jpeg_quality: 12
+  max_framerate: 10 fps
+
 esp32_camera_web_server:
   - port: 8080
     mode: stream
   - port: 8081
     mode: snapshot
 
-# (Optionnel) petit capteur uptime + RSSI
+# Nice-to-have diagnostics
 sensor:
-  - platform: uptime
-    name: "${friendly_name} Uptime"
   - platform: wifi_signal
     name: "${friendly_name} WiFi Signal"
     update_interval: 60s
+  - platform: uptime
+    name: "${friendly_name} Uptime"
 
 text_sensor:
   - platform: wifi_info
     ip_address:
       name: "${friendly_name} IP"
+
+# Optional (recommended): quick recovery button in HA
+button:
+  - platform: restart
+    name: "${friendly_name} Restart"
